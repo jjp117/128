@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JJP AI 迷彩 | 微扰对抗引擎</title>
+    <title>jjp反 AI 噪点生成器</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
             --neon-cyan: #00f5ff;
@@ -11,667 +12,618 @@
             --glass-bg: rgba(15, 15, 35, 0.7);
             --glass-border: rgba(0, 245, 255, 0.2);
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; min-height: 100vh; overflow-x: hidden; }
         body {
             background: #0a0a1a;
             font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
             color: #e0e0ff;
         }
-
-        /* Aurora Background */
         .aurora-bg {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
+            position: fixed; inset: 0; z-index: 0;
             background: radial-gradient(ellipse at 20% 50%, #0d1b2a 0%, #0a0a1a 70%);
         }
-
         .aurora-bg::before {
-            content: '';
-            position: absolute;
-            width: 150%;
-            height: 150%;
-            top: -25%;
-            left: -25%;
-            background: radial-gradient(ellipse at 30% 20%, rgba(0, 245, 255, 0.06) 0%, transparent 50%),
-                        radial-gradient(ellipse at 70% 80%, rgba(255, 0, 229, 0.04) 0%, transparent 50%);
+            content: ''; position: absolute; width: 150%; height: 150%; top: -25%; left: -25%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(0,245,255,0.06) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(255,0,229,0.04) 0%, transparent 50%);
             animation: aurora-flow 25s ease-in-out infinite;
         }
-
-        @keyframes aurora-flow {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(2%, 2%); }
-        }
-
-        /* Glass Panel */
+        @keyframes aurora-flow { 0%,100%{transform:translate(0,0)} 50%{transform:translate(2%,2%)} }
         .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 20px;
+            background: var(--glass-bg); backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border); border-radius: 16px;
+            padding: 20px; margin-bottom: 16px;
         }
-
-        /* Button */
         .btn {
-            padding: 10px 20px;
-            background: rgba(0, 245, 255, 0.05);
-            border: 1px solid rgba(0, 245, 255, 0.3);
-            border-radius: 8px;
-            color: var(--neon-cyan);
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            padding: 8px 16px; background: rgba(0,245,255,0.05);
+            border: 1px solid rgba(0,245,255,0.3); border-radius: 8px;
+            color: var(--neon-cyan); font-size: 13px; cursor: pointer;
+            transition: background-color 0.2s; display: inline-flex;
+            align-items: center; gap: 6px; flex: 1 1 auto; min-width: 100px; justify-content: center;
         }
-
-        .btn:hover {
-            background: rgba(0, 245, 255, 0.1);
-        }
-
-        .btn.active {
-            border-color: var(--neon-magenta);
-            color: var(--neon-magenta);
-            background: rgba(255, 0, 229, 0.1);
-        }
-
-        /* Slider */
+        .btn:hover { background: rgba(0,245,255,0.1); }
+        .btn.active { border-color: var(--neon-magenta); color: var(--neon-magenta); background: rgba(255,0,229,0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .slider {
-            width: 100%;
-            height: 6px;
-            background: linear-gradient(90deg, rgba(0, 245, 255, 0.3), rgba(255, 0, 229, 0.3));
-            border-radius: 3px;
-            outline: none;
-            -webkit-appearance: none;
+            width: 100%; height: 6px;
+            background: linear-gradient(90deg, rgba(0,245,255,0.3), rgba(255,0,229,0.3));
+            border-radius: 3px; outline: none; -webkit-appearance: none;
         }
-
         .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
-            background: var(--neon-cyan);
-            border-radius: 50%;
-            cursor: pointer;
+            -webkit-appearance: none; width: 18px; height: 18px;
+            background: var(--neon-cyan); border-radius: 50%; cursor: pointer;
         }
-
         .slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            background: var(--neon-cyan);
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
+            width: 18px; height: 18px; background: var(--neon-cyan);
+            border-radius: 50%; cursor: pointer; border: none;
         }
-
-        /* Upload Zone */
         .upload-zone {
-            border: 2px dashed rgba(0, 245, 255, 0.3);
-            border-radius: 12px;
-            padding: 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: border-color 0.2s;
+            border: 2px dashed rgba(0,245,255,0.3); border-radius: 12px;
+            padding: 32px; text-align: center; cursor: pointer; transition: border-color 0.2s;
         }
-
-        .upload-zone:hover {
-            border-color: var(--neon-cyan);
-        }
-
-        .upload-zone.dragover {
-            border-color: var(--neon-magenta);
-        }
-
-        /* Canvas Container */
-        .canvas-container {
-            position: relative;
-            display: inline-block;
-        }
-
-        .canvas-display {
-            border-radius: 8px;
-            border: 1px solid rgba(0, 245, 255, 0.2);
-            max-width: 100%;
-            height: auto;
-        }
-
-        /* Magnifier */
+        .upload-zone:hover { border-color: var(--neon-cyan); }
+        .upload-zone.dragover { border-color: var(--neon-magenta); }
+        .canvas-container { position: relative; display: flex; justify-content: center; width: 100%; }
+        .canvas-display { border-radius: 8px; border: 1px solid rgba(0,245,255,0.2); max-width: 100%; height: auto; }
         .magnifier {
-            position: absolute;
-            width: 100px;
-            height: 100px;
-            border: 3px solid rgba(0, 245, 255, 0.6);
-            border-radius: 50%;
-            pointer-events: none;
-            display: none;
-            overflow: hidden;
-            box-shadow: 0 0 15px rgba(0, 245, 255, 0.3);
-            z-index: 100;
-            transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            position: absolute; width: 100px; height: 100px;
+            border: 3px solid rgba(0,245,255,0.6); border-radius: 50%;
+            pointer-events: none; display: none; overflow: hidden;
+            box-shadow: 0 0 15px rgba(0,245,255,0.3); z-index: 100;
+            transition: width 0.2s, height 0.2s, border-color 0.2s, box-shadow 0.2s;
         }
-
         .magnifier.active {
-            width: 150px;
-            height: 150px;
-            border-color: #00f5ff;
-            box-shadow: 0 0 30px rgba(0, 245, 255, 0.6), inset 0 0 20px rgba(0, 245, 255, 0.1);
+            width: 150px; height: 150px; border-color: #00f5ff;
+            box-shadow: 0 0 30px rgba(0,245,255,0.6), inset 0 0 20px rgba(0,245,255,0.1);
         }
-
-        .magnifier canvas {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Compare */
+        .magnifier canvas { width: 100%; height: 100%; }
         .compare-container {
-            position: relative;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid rgba(0, 245, 255, 0.2);
+            position: relative; border-radius: 8px; overflow: hidden;
+            border: 1px solid rgba(0,245,255,0.2); margin: 0 auto;
         }
-
         .split-line {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            background: var(--neon-cyan);
-            cursor: ew-resize;
-            z-index: 10;
+            position: absolute; top: 0; bottom: 0; width: 3px;
+            background: var(--neon-cyan); cursor: ew-resize; z-index: 10;
         }
-
         .split-handle {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 28px;
-            height: 28px;
-            background: rgba(0, 245, 255, 0.2);
-            border: 2px solid var(--neon-cyan);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            width: 28px; height: 28px; background: rgba(0,245,255,0.2);
+            border: 2px solid var(--neon-cyan); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 12px;
         }
-
         .compare-label {
-            position: absolute;
-            top: 12px;
-            padding: 4px 8px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 4px;
-            font-size: 12px;
+            position: absolute; top: 8px; padding: 3px 8px;
+            background: rgba(0,0,0,0.6); border-radius: 4px; font-size: 11px;
         }
-
-        .compare-label.original {
-            left: 12px;
-            color: #67e8f9;
-        }
-
-        .compare-label.processed {
-            right: 12px;
-            color: #f9a8d4;
-        }
-
-        /* Layout */
-        .container {
-            position: relative;
-            width: 100%;
-            min-height: 100vh;
-            overflow-y: auto;
-            overflow-x: hidden;
-            z-index: 1;
-        }
-
+        .compare-label.original { left: 8px; color: #67e8f9; }
+        .compare-label.processed { right: 8px; color: #f9a8d4; }
+        .container { position: relative; width: 100%; min-height: 100vh; overflow-y: auto; z-index: 1; }
         .content {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 16px;
-            gap: 16px;
-            width: 100%;
-            box-sizing: border-box;
+            min-height: 100vh; display: flex; flex-direction: column;
+            align-items: center; padding: 16px; gap: 14px; width: 100%;
         }
-
-        .header {
-            text-align: center;
-            width: 100%;
-        }
-
+        .header { text-align: center; width: 100%; }
         .header h1 {
-            font-size: clamp(1.5rem, 5vw, 2rem);
+            font-size: clamp(1.4rem, 5vw, 2rem);
             background: linear-gradient(to right, #22d3ee, #a855f7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
         }
-
-        .header p {
-            font-size: clamp(0.75rem, 2.5vw, 0.875rem);
-            color: #9ca3af;
-            margin-top: 8px;
-        }
-
-        .main-panel {
-            width: 100%;
-            max-width: 896px;
-        }
-
-        .controls {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 16px;
-        }
-
-        .slider-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .slider-label {
-            font-size: 0.875rem;
-            color: #d1d5db;
-        }
-
-        .slider-value {
-            font-size: 0.875rem;
-            color: #22d3ee;
-            font-family: monospace;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            flex: 1 1 auto;
-            min-width: 120px;
-            justify-content: center;
-        }
-
-        .info-footer {
-            width: 100%;
-            max-width: 896px;
-        }
-
+        .header p { font-size: clamp(0.7rem, 2.5vw, 0.85rem); color: #9ca3af; margin-top: 6px; }
+        .main-panel { width: 100%; max-width: 896px; }
+        .controls { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+        .slider-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .slider-label { font-size: 0.85rem; color: #d1d5db; }
+        .slider-value { font-size: 0.85rem; color: #22d3ee; font-family: monospace; }
+        .button-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .info-footer { width: 100%; max-width: 896px; }
         .info-items {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            justify-content: center;
-            font-size: clamp(0.7rem, 2vw, 0.75rem);
-            color: #6b7280;
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+            font-size: clamp(0.65rem, 2vw, 0.75rem); color: #6b7280;
         }
-
-        .hidden {
-            display: none;
-        }
-
-        /* Canvas responsive */
-        .canvas-container {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-        }
-
-        .canvas-display {
-            max-width: 100%;
-            height: auto;
-        }
-
-        .compare-container {
-            max-width: 100%;
-        }
-
-        /* Mobile optimizations */
-        @media (max-width: 640px) {
-            .content {
-                padding: 12px;
-                gap: 12px;
-            }
-
-            .glass-panel {
-                padding: 16px;
-                border-radius: 12px;
-            }
-
-            .upload-zone {
-                padding: 32px 16px;
-            }
-
-            .btn {
-                min-width: 100px;
-                padding: 8px 12px;
-                font-size: 13px;
-            }
-
-            .button-group {
-                gap: 6px;
-            }
-        }
-
-        .magnifier-hint {
-            position: absolute;
-            bottom: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 4px 12px;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 4px;
-            font-size: 11px;
-            color: #67e8f9;
-            pointer-events: none;
-        }
-
-        /* Loading Overlay */
+        .hidden { display: none; }
         .loading-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(10, 10, 26, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            flex-direction: column;
-            gap: 16px;
+            position: fixed; inset: 0; background: rgba(10,10,26,0.9);
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; flex-direction: column; gap: 16px;
         }
-
-        .loading-overlay.active {
-            display: flex;
-        }
-
+        .loading-overlay.active { display: flex; }
         .loading-spinner {
-            width: 48px;
-            height: 48px;
-            border: 3px solid rgba(0, 245, 255, 0.2);
-            border-top-color: var(--neon-cyan);
-            border-radius: 50%;
+            width: 48px; height: 48px; border: 3px solid rgba(0,245,255,0.2);
+            border-top-color: var(--neon-cyan); border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { 
+            color: #67e8f9; 
+            font-size: 14px; 
+            text-align: center;
+            white-space: pre-line;
+            line-height: 1.6;
         }
-
-        .loading-text {
-            color: #67e8f9;
-            font-size: 14px;
+        /* OCR Panel */
+        .ocr-panel {
+            background: rgba(15,15,35,0.8); border: 1px solid rgba(255,0,229,0.3);
+            border-radius: 12px; padding: 16px; margin-top: 12px;
+        }
+        .ocr-panel h3 { color: #f9a8d4; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .ocr-section { margin-bottom: 12px; }
+        .ocr-label { font-size: 12px; color: #9ca3af; margin-bottom: 6px; font-weight: 600; }
+        .ocr-text {
+            padding: 10px; background: rgba(0,0,0,0.4); border-radius: 8px;
+            font-family: monospace; font-size: 13px; color: #e0e0ff;
+            word-break: break-all; min-height: 40px; line-height: 1.5;
+        }
+        .ocr-text.original { border-left: 3px solid #4ade80; }
+        .ocr-text.protected { border-left: 3px solid #f87171; }
+        .similarity-bar {
+            width: 100%; height: 24px; background: rgba(0,0,0,0.3);
+            border-radius: 12px; overflow: hidden; position: relative; margin-top: 8px;
+        }
+        .similarity-fill {
+            height: 100%; transition: width 0.5s ease, background-color 0.5s ease;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 600; color: white;
+        }
+        .status-message {
+            padding: 10px; border-radius: 8px; margin-top: 12px;
+            font-size: 13px; font-weight: 600; text-align: center;
+        }
+        .status-message.success { background: rgba(74,222,128,0.2); color: #4ade80; border: 1px solid #4ade80; }
+        .status-message.warning { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid #fbbf24; }
+        .status-message.danger { background: rgba(248,113,113,0.2); color: #f87171; border: 1px solid #f87171; }
+        .mode-desc { font-size: 11px; color: #6b7280; margin-top: 4px; }
+        @media (max-width: 640px) {
+            .content { padding: 12px; gap: 10px; }
+            .glass-panel { padding: 14px; border-radius: 12px; }
+            .upload-zone { padding: 24px 12px; }
+            .btn { min-width: 80px; padding: 7px 10px; font-size: 12px; }
         }
     </style>
 </head>
 <body>
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner"></div>
-        <div class="loading-text">请等待...</div>
+        <div class="loading-text" id="loadingText">请等待...</div>
     </div>
-
     <div class="container">
         <div class="aurora-bg"></div>
         <div class="content">
             <header class="header">
                 <h1>JJP AI 迷彩</h1>
-                <p>微扰对抗引擎 · 像素级隐形干扰</p>
+                <p>暴力致盲版 · OCR 拦截引擎</p>
             </header>
-
             <div class="main-panel glass-panel">
                 <div id="uploadZone" class="upload-zone">
-                    <div style="font-size: 3rem; margin-bottom: 16px;">🛡️</div>
-                    <p style="font-size: 1.125rem; color: #67e8f9;">拖拽图片到此处</p>
-                    <p style="font-size: 0.875rem; color: #6b7280; margin-top: 8px;">或点击选择文件</p>
-                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <div style="font-size:2.5rem;margin-bottom:12px">🛡️</div>
+                    <p style="font-size:1rem;color:#67e8f9">拖拽图片到此处</p>
+                    <p style="font-size:0.8rem;color:#6b7280;margin-top:6px">或点击选择文件</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display:none">
                 </div>
-
                 <canvas id="mainCanvas" class="hidden"></canvas>
                 <div id="canvasArea" class="hidden"></div>
-
                 <div id="controlsArea" class="controls hidden">
                     <div>
                         <div class="slider-header">
                             <label class="slider-label">干扰强度</label>
-                            <span id="intensityValue" class="slider-value">10%</span>
+                            <span id="intensityValue" class="slider-value">50%</span>
                         </div>
-                        <input type="range" id="intensitySlider" class="slider" min="0" max="100" value="10">
+                        <input type="range" id="intensitySlider" class="slider" min="0" max="1000" value="500" step="1">
                     </div>
-
-                    <div class="button-group">
-                        <button class="btn" data-preset="stealth">👻 隐形 (5%)</button>
-                        <button class="btn active" data-preset="balanced">⚖️ 平衡 (10%)</button>
-                        <button class="btn" data-preset="strong">☠️ 强力 (25%)</button>
+                    <div>
+                        <div class="button-group">
+                            <button class="btn" data-preset="human">👁️ Human First (20%)</button>
+                            <button class="btn active" data-preset="blind">🛡️ Machine Blind (50%)</button>
+                            <button class="btn" data-preset="paranoid">🔒 Paranoid (80%)</button>
+                        </div>
+                        <div class="mode-desc" id="modeDesc">Machine Blind：全量 A+B+C 算法</div>
                     </div>
-
                     <div class="button-group">
-                        <button id="compareBtn" class="btn">🔀 对比视图</button>
-                        <button id="exportBtn" class="btn">💾 导出 PNG</button>
-                        <button id="resetBtn" class="btn">🔄 重新上传</button>
+                        <button id="compareBtn" class="btn">🔀 对比</button>
+                        <button id="ocrBtn" class="btn">🤖 开始验证</button>
+                        <button id="exportBtn" class="btn">💾 导出</button>
+                        <button id="resetBtn" class="btn">🔄 重传</button>
                     </div>
                 </div>
+                <div id="ocrPanel" class="ocr-panel hidden">
+                    <h3>🤖 实时 OCR 拦截器</h3>
+                    <div class="ocr-section">
+                        <div class="ocr-label">Original Text (原图识别):</div>
+                        <div id="originalText" class="ocr-text original">等待识别...</div>
+                    </div>
+                    <div class="ocr-section">
+                        <div class="ocr-label">Protected Text (处理后识别):</div>
+                        <div id="protectedText" class="ocr-text protected">等待识别...</div>
+                    </div>
+                    <div class="ocr-section">
+                        <div class="ocr-label">相似度:</div>
+                        <div class="similarity-bar">
+                            <div id="similarityFill" class="similarity-fill" style="width:0%">0%</div>
+                        </div>
+                    </div>
+                    <div id="statusMessage" class="status-message hidden"></div>
+                </div>
             </div>
-
             <div class="info-footer glass-panel">
                 <div class="info-items">
-                    <span>✓ 正弦波结构化微扰</span>
-                    <span>✓ 振幅 ±3~5px</span>
-                    <span>✓ 肉眼不可见</span>
-                    <span>✓ AI 识别破坏</span>
+                    <span>✓ 摩尔纹覆盖</span>
+                    <span>✓ 笔画腐蚀</span>
+                    <span>✓ 色彩混淆</span>
+                    <span>✓ OCR 致盲</span>
                 </div>
             </div>
         </div>
     </div>
-
     <script>
-        // State
         const state = {
-            image: null,
-            intensity: 10,
-            compareMode: false,
-            splitPosition: 50,
-            isDraggingSplit: false
+            image: null, originalData: null,
+            intensity: 500, mode: 'blind',
+            compareMode: false, splitPosition: 50,
+            isDraggingSplit: false,
+            originalOCR: '', protectedOCR: ''
         };
-
         const PRESETS = {
-            stealth: 5,
-            balanced: 10,
-            strong: 25
+            human: { intensity: 200, desc: 'Human First：仅色彩混淆，轻微色差' },
+            blind: { intensity: 500, desc: 'Machine Blind：全量 A+B+C 算法' },
+            paranoid: { intensity: 800, desc: 'Paranoid：高强度 + 高斯模糊' }
         };
+        const $ = id => document.getElementById(id);
+        const uploadZone=$('uploadZone'), fileInput=$('fileInput'),
+              mainCanvas=$('mainCanvas'), canvasArea=$('canvasArea'),
+              controlsArea=$('controlsArea'), intensitySlider=$('intensitySlider'),
+              intensityValue=$('intensityValue'), compareBtn=$('compareBtn'),
+              ocrBtn=$('ocrBtn'), exportBtn=$('exportBtn'), resetBtn=$('resetBtn'),
+              ocrPanel=$('ocrPanel'), loadingOverlay=$('loadingOverlay'),
+              loadingText=$('loadingText'), modeDesc=$('modeDesc');
+        let compareCanvas=null, compareContainer=null;
 
-        // DOM
-        const uploadZone = document.getElementById('uploadZone');
-        const fileInput = document.getElementById('fileInput');
-        const mainCanvas = document.getElementById('mainCanvas');
-        const canvasArea = document.getElementById('canvasArea');
-        const controlsArea = document.getElementById('controlsArea');
-        const intensitySlider = document.getElementById('intensitySlider');
-        const intensityValue = document.getElementById('intensityValue');
-        const compareBtn = document.getElementById('compareBtn');
-        const exportBtn = document.getElementById('exportBtn');
-        const resetBtn = document.getElementById('resetBtn');
-
-        let compareCanvas = null;
-        let compareContainer = null;
-        const loadingOverlay = document.getElementById('loadingOverlay');
-
-        // Show loading for 1 second
-        function showLoading() {
+        function showLoading(text='请等待...') {
+            loadingText.textContent = text;
             loadingOverlay.classList.add('active');
-            setTimeout(() => {
-                loadingOverlay.classList.remove('active');
-            }, 1000);
+        }
+        function hideLoading() {
+            loadingOverlay.classList.remove('active');
         }
 
-        // Structured noise using sine waves (deterministic, low amplitude)
-        function renderNoise() {
-            if (!state.image || !mainCanvas) return;
+        // === CORE ALGORITHM: Three-step brute force ===
 
-            const ctx = mainCanvas.getContext('2d');
-            if (!ctx) return;
-
-            ctx.drawImage(state.image, 0, 0);
-
-            const strength = state.intensity / 100;
-            if (strength < 0.001) return;
-
-            const imageData = ctx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
-            const data = imageData.data;
-            const width = mainCanvas.width;
-            const height = mainCanvas.height;
-
-            // Amplitude: ±3 to ±5 based on intensity
-            const amp = 3 + strength * 2;
-            const freq = 0.05; // Low frequency for subtle pattern
-
+        // Step A: Moiré Pattern Overlay (high-frequency stripes)
+        function applyMoirePattern(data, width, height, strength) {
+            // 从0开始均匀增长，100%时达到最大效果
+            const opacity = strength * 0.25; // 0% ~ 25%
+            const frequency = 3 + strength * 2; // 3 ~ 5 pixels per cycle
+            
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
                     const i = (y * width + x) * 4;
-
-                    // Structured sine wave noise (deterministic)
-                    const noiseR = Math.sin(x * freq + y * freq) * amp * strength;
-                    const noiseG = Math.cos(x * freq - y * freq) * amp * strength;
-                    const noiseB = Math.sin(x * freq * 1.5 + y * freq * 0.8) * amp * strength;
-
-                    // Apply minimal perturbation
-                    data[i] = Math.max(0, Math.min(255, data[i] + noiseR));
-                    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noiseG));
-                    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noiseB));
+                    const pattern = Math.sin(x / frequency * Math.PI * 2) * Math.sin(y / frequency * Math.PI * 2);
+                    const offset = pattern * 255 * opacity;
+                    data[i] = Math.max(0, Math.min(255, data[i] + offset));
+                    data[i+1] = Math.max(0, Math.min(255, data[i+1] + offset));
+                    data[i+2] = Math.max(0, Math.min(255, data[i+2] + offset));
                 }
             }
-
-            ctx.putImageData(imageData, 0, 0);
         }
 
-        // Get display dimensions (responsive)
+        // Step B: Random Stroke Erosion (break text strokes)
+        function applyStrokeErosion(data, width, height, strength) {
+            // 从0开始均匀增长
+            const erosionRate = strength * 0.3; // 0% ~ 30%
+            const threshold = 128;
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const i = (y * width + x) * 4;
+                    const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+                    
+                    if (brightness < threshold && Math.random() < erosionRate) {
+                        const gray = 200 + Math.random() * 55;
+                        data[i] = gray;
+                        data[i+1] = gray;
+                        data[i+2] = gray;
+                    }
+                }
+            }
+        }
+
+        // Step C: Color Space Confusion (chromatic aberration)
+        function applyColorConfusion(data, width, height, strength) {
+            // 从0开始均匀增长
+            const amp = strength * 20; // 0 ~ 20
+            const freq = 0.05;
+            const phaseR = 0;
+            const phaseG = Math.PI / 2;
+            const phaseB = Math.PI;
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const i = (y * width + x) * 4;
+                    const pos = x * freq + y * freq;
+                    
+                    data[i] = Math.max(0, Math.min(255, data[i] + Math.sin(pos + phaseR) * amp));
+                    data[i+1] = Math.max(0, Math.min(255, data[i+1] + Math.sin(pos + phaseG) * amp));
+                    data[i+2] = Math.max(0, Math.min(255, data[i+2] + Math.sin(pos + phaseB) * amp));
+                }
+            }
+        }
+
+        // Gaussian blur for paranoid mode
+        function applyGaussianBlur(data, width, height, radius) {
+            const kernel = [];
+            const sigma = radius / 2;
+            let sum = 0;
+            
+            for (let y = -radius; y <= radius; y++) {
+                for (let x = -radius; x <= radius; x++) {
+                    const weight = Math.exp(-(x*x + y*y) / (2 * sigma * sigma));
+                    kernel.push({ x, y, weight });
+                    sum += weight;
+                }
+            }
+            
+            kernel.forEach(k => k.weight /= sum);
+            
+            const temp = new Uint8ClampedArray(data);
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let r = 0, g = 0, b = 0;
+                    
+                    kernel.forEach(k => {
+                        const px = Math.max(0, Math.min(width-1, x + k.x));
+                        const py = Math.max(0, Math.min(height-1, y + k.y));
+                        const i = (py * width + px) * 4;
+                        r += temp[i] * k.weight;
+                        g += temp[i+1] * k.weight;
+                        b += temp[i+2] * k.weight;
+                    });
+                    
+                    const i = (y * width + x) * 4;
+                    data[i] = r;
+                    data[i+1] = g;
+                    data[i+2] = b;
+                }
+            }
+        }
+
+        // Main camouflage function
+        function applyCamouflage() {
+            if (!state.originalData || !state.image) return;
+            const ctx = mainCanvas.getContext('2d');
+            const width = mainCanvas.width, height = mainCanvas.height;
+            const strength = state.intensity / 1000;
+
+            const data = new Uint8ClampedArray(state.originalData);
+
+            if (strength > 0.001) {
+                if (state.mode === 'human') {
+                    applyColorConfusion(data, width, height, strength);
+                } else if (state.mode === 'blind') {
+                    applyMoirePattern(data, width, height, strength);
+                    applyStrokeErosion(data, width, height, strength);
+                    applyColorConfusion(data, width, height, strength);
+                } else if (state.mode === 'paranoid') {
+                    applyMoirePattern(data, width, height, strength);
+                    applyStrokeErosion(data, width, height, strength);
+                    applyColorConfusion(data, width, height, strength);
+                    applyGaussianBlur(data, width, height, 2);
+                }
+                
+                const imageData = new ImageData(data, width, height);
+                ctx.putImageData(imageData, 0, 0);
+            } else {
+                // Bug Fix: 指定目标尺寸，避免图片以原始大小绘制到左上角
+                ctx.drawImage(state.image, 0, 0, width, height);
+            }
+        }
+
+        // Calculate string similarity (Levenshtein-based)
+        function calculateSimilarity(str1, str2) {
+            if (!str1 && !str2) return 100;
+            if (!str1 || !str2) return 0;
+            
+            const len1 = str1.length, len2 = str2.length;
+            const matrix = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+            
+            for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+            for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+            
+            for (let i = 1; i <= len1; i++) {
+                for (let j = 1; j <= len2; j++) {
+                    const cost = str1[i-1] === str2[j-1] ? 0 : 1;
+                    matrix[i][j] = Math.min(
+                        matrix[i-1][j] + 1,
+                        matrix[i][j-1] + 1,
+                        matrix[i-1][j-1] + cost
+                    );
+                }
+            }
+            
+            const distance = matrix[len1][len2];
+            const maxLen = Math.max(len1, len2);
+            return maxLen > 0 ? ((maxLen - distance) / maxLen) * 100 : 0;
+        }
+
+        // Run OCR on canvas
+        async function runOCR(canvas, label) {
+            return new Promise((resolve) => {
+                canvas.toBlob(async (blob) => {
+                    try {
+                        const result = await Tesseract.recognize(blob, 'chi_sim+eng', {
+                            logger: () => {}
+                        });
+                        resolve(result.data.text.trim());
+                    } catch (err) {
+                        console.error('OCR error:', err);
+                        resolve('(OCR 识别失败)');
+                    }
+                }, 'image/png');
+            });
+        }
+
+        // Run OCR comparison
+        async function runOCRComparison() {
+            if (!state.image) return;
+            
+            // 检查是否是第一次运行
+            const isFirstRun = !localStorage.getItem('jjp-ocr-loaded');
+            
+            try {
+                if (isFirstRun) {
+                    showLoading('正在识别原图...\n\n⚠️ 第一次运行加载会很慢，请耐心等待\n（需要下载 OCR 语言包）');
+                } else {
+                    showLoading('正在识别原图...');
+                }
+                
+                const origCanvas = document.createElement('canvas');
+                origCanvas.width = mainCanvas.width;
+                origCanvas.height = mainCanvas.height;
+                const origCtx = origCanvas.getContext('2d');
+                origCtx.drawImage(state.image, 0, 0);
+                
+                state.originalOCR = await runOCR(origCanvas, 'original');
+                $('originalText').textContent = state.originalOCR || '(无文字)';
+                
+                // 标记为已加载
+                localStorage.setItem('jjp-ocr-loaded', 'true');
+                
+                hideLoading();
+                showLoading('正在识别处理后图片...');
+                
+                state.protectedOCR = await runOCR(mainCanvas, 'protected');
+                $('protectedText').textContent = state.protectedOCR || '(无文字)';
+                
+                const similarity = calculateSimilarity(state.originalOCR, state.protectedOCR);
+                const fill = $('similarityFill');
+                fill.style.width = similarity + '%';
+                fill.textContent = similarity.toFixed(1) + '%';
+                
+                if (similarity > 80) {
+                    fill.style.backgroundColor = '#f87171';
+                    showStatus('danger', '⚠️ 防护不足！建议提高强度或切换模式。');
+                } else if (similarity > 30) {
+                    fill.style.backgroundColor = '#fbbf24';
+                    showStatus('warning', '⚡ 部分防护，AI 仍能识别部分内容。');
+                } else {
+                    fill.style.backgroundColor = '#4ade80';
+                    showStatus('success', '✅ 完美致盲！AI 已失去视力。');
+                }
+                
+                ocrPanel.classList.remove('hidden');
+            } catch (err) {
+                console.error('OCR comparison error:', err);
+                $('originalText').textContent = '(识别失败)';
+                $('protectedText').textContent = '(识别失败)';
+                showStatus('warning', '⚠️ OCR 识别出错，请重试。');
+                ocrPanel.classList.remove('hidden');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showStatus(type, message) {
+            const status = $('statusMessage');
+            status.className = 'status-message ' + type;
+            status.textContent = message;
+            status.classList.remove('hidden');
+        }
+
         function getDisplayDims() {
-            if (!state.image) return { w: 0, h: 0 };
-            const containerWidth = window.innerWidth - 32; // Account for padding
-            const maxW = Math.min(896, containerWidth);
-            const maxH = Math.min(window.innerHeight * 0.6, 600);
-            const scale = Math.min(1, maxW / state.image.width, maxH / state.image.height);
-            return { w: state.image.width * scale, h: state.image.height * scale };
+            if (!state.image) return { w:0, h:0 };
+            const cw = window.innerWidth - 32;
+            const maxW = Math.min(896, cw);
+            const maxH = Math.min(window.innerHeight * 0.5, 500);
+            const scale = Math.min(1, maxW/state.image.width, maxH/state.image.height);
+            return { w: state.image.width*scale, h: state.image.height*scale };
         }
 
-        // Show canvas
         function showCanvas() {
             const dims = getDisplayDims();
-
             if (state.compareMode) {
                 canvasArea.innerHTML = `
-                    <div class="compare-container" id="compareContainer" style="width: ${dims.w}px; height: ${dims.h}px; max-width: 100%;">
-                        <canvas id="compareCanvas" style="width: 100%; height: 100%;"></canvas>
-                        <div class="split-line" id="splitLine" style="left: ${state.splitPosition}%;">
+                    <div class="compare-container" id="compareContainer" style="width:${dims.w}px;height:${dims.h}px;max-width:100%">
+                        <canvas id="compareCanvas" style="width:100%;height:100%"></canvas>
+                        <div class="split-line" id="splitLine" style="left:${state.splitPosition}%">
                             <div class="split-handle">⇔</div>
                         </div>
                         <div class="compare-label original">原始</div>
                         <div class="compare-label processed">迷彩</div>
-                    </div>
-                `;
-                compareCanvas = document.getElementById('compareCanvas');
-                compareContainer = document.getElementById('compareContainer');
+                    </div>`;
+                compareCanvas = $('compareCanvas');
+                compareContainer = $('compareContainer');
                 renderComparison();
-
-                const splitLine = document.getElementById('splitLine');
-                splitLine.addEventListener('mousedown', () => { state.isDraggingSplit = true; });
-                splitLine.addEventListener('touchstart', () => { state.isDraggingSplit = true; });
+                $('splitLine').addEventListener('mousedown', () => state.isDraggingSplit=true);
+                $('splitLine').addEventListener('touchstart', () => state.isDraggingSplit=true);
             } else {
                 canvasArea.innerHTML = `
                     <div class="canvas-container" id="canvasContainer">
                         <canvas id="visibleCanvas" class="canvas-display"></canvas>
-                        <div class="magnifier" id="magnifier">
-                            <canvas id="magnifierCanvas"></canvas>
-                        </div>
-                        <div class="magnifier-hint">悬停图片查看像素级微扰</div>
-                    </div>
-                `;
+                        <div class="magnifier" id="magnifier"><canvas id="magnifierCanvas"></canvas></div>
+                        <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);padding:3px 10px;background:rgba(0,0,0,0.7);border-radius:4px;font-size:11px;color:#67e8f9;pointer-events:none">悬停查看像素级干扰</div>
+                    </div>`;
                 updateVisibleCanvas();
                 setupMagnifier();
             }
         }
 
-        // Update visible canvas
         function updateVisibleCanvas() {
-            const visibleCanvas = document.getElementById('visibleCanvas');
-            if (!visibleCanvas || !mainCanvas) return;
-
-            visibleCanvas.width = mainCanvas.width;
-            visibleCanvas.height = mainCanvas.height;
-
-            const ctx = visibleCanvas.getContext('2d');
-            if (ctx) ctx.drawImage(mainCanvas, 0, 0);
+            const vc = $('visibleCanvas');
+            if (!vc || !mainCanvas) return;
+            vc.width = mainCanvas.width; 
+            vc.height = mainCanvas.height;
+            const ctx = vc.getContext('2d');
+            // Bug Fix: 明确指定目标尺寸，避免图片放大到左上角
+            if (ctx) ctx.drawImage(mainCanvas, 0, 0, vc.width, vc.height);
         }
 
-        // Render comparison
         function renderComparison() {
             if (!state.compareMode || !compareCanvas || !state.image || !mainCanvas) return;
-
             const ctx = compareCanvas.getContext('2d');
             if (!ctx) return;
-
-            compareCanvas.width = state.image.width;
-            compareCanvas.height = state.image.height;
-
-            const splitX = Math.floor((state.splitPosition / 100) * compareCanvas.width);
-
-            ctx.drawImage(state.image, 0, 0, splitX, compareCanvas.height, 0, 0, splitX, compareCanvas.height);
-            ctx.drawImage(mainCanvas, splitX, 0, compareCanvas.width - splitX, compareCanvas.height, splitX, 0, compareCanvas.width - splitX, compareCanvas.height);
+            // 使用 mainCanvas 的尺寸
+            compareCanvas.width = mainCanvas.width;
+            compareCanvas.height = mainCanvas.height;
+            const cw = compareCanvas.width;
+            const ch = compareCanvas.height;
+            const splitX = Math.floor((state.splitPosition/100)*cw);
+            
+            // Bug Fix: 左边原图 - 按比例从原图裁剪对应区域
+            // 计算原图中对应的裁剪区域
+            const srcSplitX = Math.floor((state.splitPosition/100)*state.image.width);
+            ctx.drawImage(
+                state.image,
+                0, 0, srcSplitX, state.image.height,   // 源图裁剪区域
+                0, 0, splitX, ch                         // 目标绘制区域
+            );
+            
+            // 右边：处理后的图（已经是 mainCanvas 尺寸）
+            ctx.drawImage(
+                mainCanvas,
+                splitX, 0, cw-splitX, ch,
+                splitX, 0, cw-splitX, ch
+            );
         }
 
-        // Magnifier setup
         function setupMagnifier() {
-            const container = document.getElementById('canvasContainer');
-            const canvas = document.getElementById('visibleCanvas');
-            const magnifier = document.getElementById('magnifier');
-            const magnifierCanvas = document.getElementById('magnifierCanvas');
-
-            if (!container || !canvas || !magnifier || !magnifierCanvas) return;
-
-            const magCtx = magnifierCanvas.getContext('2d');
-            magnifierCanvas.width = 150;
-            magnifierCanvas.height = 150;
-
-            canvas.addEventListener('mouseenter', () => {
-                magnifier.classList.add('active');
-            });
-
+            const container = $('canvasContainer'), canvas = $('visibleCanvas');
+            const magnifier = $('magnifier'), magCanvas = $('magnifierCanvas');
+            if (!container||!canvas||!magnifier||!magCanvas) return;
+            const magCtx = magCanvas.getContext('2d');
+            magCanvas.width = 150; magCanvas.height = 150;
+            canvas.addEventListener('mouseenter', () => magnifier.classList.add('active'));
             canvas.addEventListener('mousemove', (e) => {
                 const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                // Show magnifier
+                const x = e.clientX-rect.left, y = e.clientY-rect.top;
                 magnifier.style.display = 'block';
-                magnifier.style.left = (e.clientX - rect.left + 20) + 'px';
-                magnifier.style.top = (e.clientY - rect.top - 75) + 'px';
-
-                // Draw magnified area (10x zoom)
-                const zoomSize = 15; // 15px area -> 150px display = 10x
-                const sourceX = (x / rect.width) * canvas.width - zoomSize / 2;
-                const sourceY = (y / rect.height) * canvas.height - zoomSize / 2;
-
-                magCtx.clearRect(0, 0, 150, 150);
+                magnifier.style.left = (e.clientX-rect.left+20)+'px';
+                magnifier.style.top = (e.clientY-rect.top-75)+'px';
+                const zoomSize = 15;
+                const sourceX = (x/rect.width)*canvas.width - zoomSize/2;
+                const sourceY = (y/rect.height)*canvas.height - zoomSize/2;
+                magCtx.clearRect(0,0,150,150);
                 magCtx.imageSmoothingEnabled = false;
                 magCtx.drawImage(canvas, sourceX, sourceY, zoomSize, zoomSize, 0, 0, 150, 150);
             });
-
             canvas.addEventListener('mouseleave', () => {
                 magnifier.style.display = 'none';
                 magnifier.classList.remove('active');
@@ -681,73 +633,69 @@
         // File handling
         function handleFile(file) {
             if (!file.type.startsWith('image/')) return;
-            showLoading();
+            showLoading('加载图片...');
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
                     state.image = img;
                     state.compareMode = false;
-                    mainCanvas.width = img.width;
-                    mainCanvas.height = img.height;
+                    const maxDim = 1200;
+                    let w = img.width, h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        const scale = maxDim / Math.max(w, h);
+                        w = Math.round(w * scale);
+                        h = Math.round(h * scale);
+                    }
+                    mainCanvas.width = w; mainCanvas.height = h;
+                    const ctx = mainCanvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    state.originalData = new Uint8ClampedArray(ctx.getImageData(0,0,w,h).data);
 
                     uploadZone.classList.add('hidden');
                     canvasArea.classList.remove('hidden');
                     controlsArea.classList.remove('hidden');
+                    ocrPanel.classList.add('hidden');
 
-                    renderNoise();
+                    applyCamouflage();
                     showCanvas();
+                    hideLoading(); // 图片加载完成，立即隐藏加载弹窗
+                };
+                img.onerror = () => {
+                    hideLoading();
+                    alert('图片加载失败，请重试');
                 };
                 img.src = e.target.result;
+            };
+            reader.onerror = () => {
+                hideLoading();
+                alert('文件读取失败，请重试');
             };
             reader.readAsDataURL(file);
         }
 
         // Events
         uploadZone.addEventListener('click', () => fileInput.click());
-        uploadZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
-        });
-        uploadZone.addEventListener('dragleave', () => {
-            uploadZone.classList.remove('dragover');
-        });
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
         uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file) handleFile(file);
+            e.preventDefault(); uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
         });
+        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
 
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) handleFile(file);
-        });
-
-        // Debounce
-        function debounce(func, wait) {
-            let timeout;
-            return function(...args) {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func(...args), wait);
-            };
-        }
-
+        function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
         const debouncedRender = debounce(() => {
             if (state.image) {
-                renderNoise();
-                if (state.compareMode) {
-                    renderComparison();
-                } else {
-                    updateVisibleCanvas();
-                }
+                applyCamouflage();
+                if (state.compareMode) renderComparison(); else updateVisibleCanvas();
+                // 不自动运行 OCR，让用户手动点击
             }
-        }, 300);
+        }, 150);
 
         intensitySlider.addEventListener('input', (e) => {
-            const val = Number(e.target.value);
-            state.intensity = val;
-            intensityValue.textContent = `${val}%`;
+            state.intensity = Number(e.target.value);
+            intensityValue.textContent = (state.intensity / 10).toFixed(1) + '%';
             debouncedRender();
         });
 
@@ -756,72 +704,67 @@
                 document.querySelectorAll('[data-preset]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 const preset = btn.dataset.preset;
-                state.intensity = PRESETS[preset];
+                state.mode = preset;
+                state.intensity = PRESETS[preset].intensity;
                 intensitySlider.value = state.intensity;
-                intensityValue.textContent = `${state.intensity}%`;
+                intensityValue.textContent = (state.intensity / 10).toFixed(1) + '%';
+                modeDesc.textContent = PRESETS[preset].desc;
                 debouncedRender();
             });
         });
 
         compareBtn.addEventListener('click', () => {
-            showLoading();
             state.compareMode = !state.compareMode;
             compareBtn.classList.toggle('active');
-            compareBtn.querySelector('span:last-child') || (compareBtn.textContent = state.compareMode ? '🔀 关闭对比' : '🔀 对比视图');
             showCanvas();
+        });
+
+        ocrBtn.addEventListener('click', () => {
+            if (!state.image) return;
+            runOCRComparison();
         });
 
         exportBtn.addEventListener('click', () => {
             if (!mainCanvas || !state.image) return;
-            showLoading();
+            showLoading('导出中...');
             const link = document.createElement('a');
             link.download = `jjp-camouflage-${Date.now()}.png`;
             link.href = mainCanvas.toDataURL('image/png');
             link.click();
+            setTimeout(hideLoading, 500);
         });
 
         resetBtn.addEventListener('click', () => {
             showLoading();
-            state.image = null;
-            state.compareMode = false;
-            state.intensity = 10;
-            intensitySlider.value = 10;
-            intensityValue.textContent = '10%';
+            state.image = null; state.originalData = null;
+            state.compareMode = false; state.intensity = 500;
+            state.originalOCR = ''; state.protectedOCR = '';
+            intensitySlider.value = 500; intensityValue.textContent = '50%';
             uploadZone.classList.remove('hidden');
             canvasArea.classList.add('hidden');
             controlsArea.classList.add('hidden');
+            ocrPanel.classList.add('hidden');
+            setTimeout(hideLoading, 500);
         });
 
-        // Split drag (mouse and touch)
+        // Split drag
         function handleSplitMove(clientX) {
             if (!state.isDraggingSplit || !compareContainer) return;
             const rect = compareContainer.getBoundingClientRect();
-            const x = ((clientX - rect.left) / rect.width) * 100;
-            state.splitPosition = Math.max(5, Math.min(95, x));
-            const splitLine = document.getElementById('splitLine');
-            if (splitLine) splitLine.style.left = `${state.splitPosition}%`;
+            state.splitPosition = Math.max(5, Math.min(95, ((clientX-rect.left)/rect.width)*100));
+            const sl = $('splitLine');
+            if (sl) sl.style.left = state.splitPosition + '%';
             renderComparison();
         }
-
         window.addEventListener('mousemove', (e) => handleSplitMove(e.clientX));
-        window.addEventListener('touchmove', (e) => {
-            if (state.isDraggingSplit && e.touches.length > 0) {
-                handleSplitMove(e.touches[0].clientX);
-            }
-        });
+        window.addEventListener('touchmove', (e) => { if (state.isDraggingSplit && e.touches.length) handleSplitMove(e.touches[0].clientX); });
+        window.addEventListener('mouseup', () => state.isDraggingSplit = false);
+        window.addEventListener('touchend', () => state.isDraggingSplit = false);
 
-        window.addEventListener('mouseup', () => { state.isDraggingSplit = false; });
-        window.addEventListener('touchend', () => { state.isDraggingSplit = false; });
-
-        // Responsive: re-render on resize
         let resizeTimeout;
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                if (state.image) {
-                    showCanvas();
-                }
-            }, 200);
+            resizeTimeout = setTimeout(() => { if (state.image) showCanvas(); }, 200);
         });
     </script>
 </body>
