@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JJP AI 迷彩 | 微扰对抗引擎</title>
+    <style>
+        :root {
+            --neon-cyan: #00f5ff;
+            --neon-magenta: #ff00e5;
+            --glass-bg: rgba(15, 15, 35, 0.7);
+            --glass-border: rgba(0, 245, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #0a0a1a;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+            color: #e0e0ff;
+        }
+
+        /* Aurora Background */
+        .aurora-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: radial-gradient(ellipse at 20% 50%, #0d1b2a 0%, #0a0a1a 70%);
+        }
+
+        .aurora-bg::before {
+            content: '';
+            position: absolute;
+            width: 150%;
+            height: 150%;
+            top: -25%;
+            left: -25%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(0, 245, 255, 0.06) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(255, 0, 229, 0.04) 0%, transparent 50%);
+            animation: aurora-flow 25s ease-in-out infinite;
+        }
+
+        @keyframes aurora-flow {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(2%, 2%); }
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        /* Button */
+        .btn {
+            padding: 10px 20px;
+            background: rgba(0, 245, 255, 0.05);
+            border: 1px solid rgba(0, 245, 255, 0.3);
+            border-radius: 8px;
+            color: var(--neon-cyan);
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: rgba(0, 245, 255, 0.1);
+        }
+
+        .btn.active {
+            border-color: var(--neon-magenta);
+            color: var(--neon-magenta);
+            background: rgba(255, 0, 229, 0.1);
+        }
+
+        /* Slider */
+        .slider {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, rgba(0, 245, 255, 0.3), rgba(255, 0, 229, 0.3));
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed rgba(0, 245, 255, 0.3);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--neon-cyan);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--neon-magenta);
+        }
+
+        /* Canvas Container */
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .canvas-display {
+            border-radius: 8px;
+            border: 1px solid rgba(0, 245, 255, 0.2);
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Magnifier */
+        .magnifier {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border: 3px solid rgba(0, 245, 255, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(0, 245, 255, 0.3);
+            z-index: 100;
+            transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .magnifier.active {
+            width: 150px;
+            height: 150px;
+            border-color: #00f5ff;
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.6), inset 0 0 20px rgba(0, 245, 255, 0.1);
+        }
+
+        .magnifier canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Compare */
+        .compare-container {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 245, 255, 0.2);
+        }
+
+        .split-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--neon-cyan);
+            cursor: ew-resize;
+            z-index: 10;
+        }
+
+        .split-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 28px;
+            height: 28px;
+            background: rgba(0, 245, 255, 0.2);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .compare-label {
+            position: absolute;
+            top: 12px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .compare-label.original {
+            left: 12px;
+            color: #67e8f9;
+        }
+
+        .compare-label.processed {
+            right: 12px;
+            color: #f9a8d4;
+        }
+
+        /* Layout */
+        .container {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1;
+        }
+
+        .content {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            gap: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            width: 100%;
+        }
+
+        .header h1 {
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            background: linear-gradient(to right, #22d3ee, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: clamp(0.75rem, 2.5vw, 0.875rem);
+            color: #9ca3af;
+            margin-top: 8px;
+        }
+
+        .main-panel {
+            width: 100%;
+            max-width: 896px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .slider-label {
+            font-size: 0.875rem;
+            color: #d1d5db;
+        }
+
+        .slider-value {
+            font-size: 0.875rem;
+            color: #22d3ee;
+            font-family: monospace;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1 1 auto;
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .info-footer {
+            width: 100%;
+            max-width: 896px;
+        }
+
+        .info-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            font-size: clamp(0.7rem, 2vw, 0.75rem);
+            color: #6b7280;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Canvas responsive */
+        .canvas-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .canvas-display {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .compare-container {
+            max-width: 100%;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .content {
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .glass-panel {
+                padding: 16px;
+                border-radius: 12px;
+            }
+
+            .upload-zone {
+                padding: 32px 16px;
+            }
+
+            .btn {
+                min-width: 100px;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            .button-group {
+                gap: 6px;
+            }
+        }
+
+        .magnifier-hint {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 12px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 4px;
+            font-size: 11px;
+            color: #67e8f9;
+            pointer-events: none;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 26, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(0, 245, 255, 0.2);
+            border-top-color: var(--neon-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #67e8f9;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">请等待...</div>
+    </div>
+
+    <div class="container">
+        <div class="aurora-bg"></div>
+        <div class="content">
+            <header class="header">
+                <h1>JJP AI 迷彩</h1>
+                <p>微扰对抗引擎 · 像素级隐形干扰</p>
+            </header>
+
+            <div class="main-panel glass-panel">
+                <div id="uploadZone" class="upload-zone">
+                    <div style="font-size: 3rem; margin-bottom: 16px;">🛡️</div>
+                    <p style="font-size: 1.125rem; color: #67e8f9;">拖拽图片到此处</p>
+                    <p style="font-size: 0.875rem; color: #6b7280; margin-top: 8px;">或点击选择文件</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                </div>
+
+                <canvas id="mainCanvas" class="hidden"></canvas>
+                <div id="canvasArea" class="hidden"></div>
+
+                <div id="controlsArea" class="controls hidden">
+                    <div>
+                        <div class="slider-header">
+                            <label class="slider-label">干扰强度</label>
+                            <span id="intensityValue" class="slider-value">10%</span>
+                        </div>
+                        <input type="range" id="intensitySlider" class="slider" min="0" max="100" value="10">
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn" data-preset="stealth">👻 隐形 (5%)</button>
+                        <button class="btn active" data-preset="balanced">⚖️ 平衡 (10%)</button>
+                        <button class="btn" data-preset="strong">☠️ 强力 (25%)</button>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="compareBtn" class="btn">🔀 对比视图</button>
+                        <button id="exportBtn" class="btn">💾 导出 PNG</button>
+                        <button id="resetBtn" class="btn">🔄 重新上传</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-footer glass-panel">
+                <div class="info-items">
+                    <span>✓ 正弦波结构化微扰</span>
+                    <span>✓ 振幅 ±3~5px</span>
+                    <span>✓ 肉眼不可见</span>
+                    <span>✓ AI 识别破坏</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const state = {
+            image: null,
+            intensity: 10,
+            compareMode: false,
+            splitPosition: 50,
+            isDraggingSplit: false
+        };
+
+        const PRESETS = {
+            stealth: 5,
+            balanced: 10,
+            strong: 25
+        };
+
+        // DOM
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const mainCanvas = document.getElementById('mainCanvas');
+        const canvasArea = document.getElementById('canvasArea');
+        const controlsArea = document.getElementById('controlsArea');
+        const intensitySlider = document.getElementById('intensitySlider');
+        const intensityValue = document.getElementById('intensityValue');
+        const compareBtn = document.getElementById('compareBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        let compareCanvas = null;
+        let compareContainer = null;
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // Show loading for 1 second
+        function showLoading() {
+            loadingOverlay.classList.add('active');
+            setTimeout(() => {
+                loadingOverlay.classList.remove('active');
+            }, 1000);
+        }
+
+        // Structured noise using sine waves (deterministic, low amplitude)
+        function renderNoise() {
+            if (!state.image || !mainCanvas) return;
+
+            const ctx = mainCanvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.drawImage(state.image, 0, 0);
+
+            const strength = state.intensity / 100;
+            if (strength < 0.001) return;
+
+            const imageData = ctx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
+            const data = imageData.data;
+            const width = mainCanvas.width;
+            const height = mainCanvas.height;
+
+            // Amplitude: ±3 to ±5 based on intensity
+            const amp = 3 + strength * 2;
+            const freq = 0.05; // Low frequency for subtle pattern
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const i = (y * width + x) * 4;
+
+                    // Structured sine wave noise (deterministic)
+                    const noiseR = Math.sin(x * freq + y * freq) * amp * strength;
+                    const noiseG = Math.cos(x * freq - y * freq) * amp * strength;
+                    const noiseB = Math.sin(x * freq * 1.5 + y * freq * 0.8) * amp * strength;
+
+                    // Apply minimal perturbation
+                    data[i] = Math.max(0, Math.min(255, data[i] + noiseR));
+                    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noiseG));
+                    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noiseB));
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // Get display dimensions (responsive)
+        function getDisplayDims() {
+            if (!state.image) return { w: 0, h: 0 };
+            const containerWidth = window.innerWidth - 32; // Account for padding
+            const maxW = Math.min(896, containerWidth);
+            const maxH = Math.min(window.innerHeight * 0.6, 600);
+            const scale = Math.min(1, maxW / state.image.width, maxH / state.image.height);
+            return { w: state.image.width * scale, h: state.image.height * scale };
+        }
+
+        // Show canvas
+        function showCanvas() {
+            const dims = getDisplayDims();
+
+            if (state.compareMode) {
+                canvasArea.innerHTML = `
+                    <div class="compare-container" id="compareContainer" style="width: ${dims.w}px; height: ${dims.h}px; max-width: 100%;">
+                        <canvas id="compareCanvas" style="width: 100%; height: 100%;"></canvas>
+                        <div class="split-line" id="splitLine" style="left: ${state.splitPosition}%;">
+                            <div class="split-handle">⇔</div>
+                        </div>
+                        <div class="compare-label original">原始</div>
+                        <div class="compare-label processed">迷彩</div>
+                    </div>
+                `;
+                compareCanvas = document.getElementById('compareCanvas');
+                compareContainer = document.getElementById('compareContainer');
+                renderComparison();
+
+                const splitLine = document.getElementById('splitLine');
+                splitLine.addEventListener('mousedown', () => { state.isDraggingSplit = true; });
+                splitLine.addEventListener('touchstart', () => { state.isDraggingSplit = true; });
+            } else {
+                canvasArea.innerHTML = `
+                    <div class="canvas-container" id="canvasContainer">
+                        <canvas id="visibleCanvas" class="canvas-display"></canvas>
+                        <div class="magnifier" id="magnifier">
+                            <canvas id="magnifierCanvas"></canvas>
+                        </div>
+                        <div class="magnifier-hint">悬停图片查看像素级微扰</div>
+                    </div>
+                `;
+                updateVisibleCanvas();
+                setupMagnifier();
+            }
+        }
+
+        // Update visible canvas
+        function updateVisibleCanvas() {
+            const visibleCanvas = document.getElementById('visibleCanvas');
+            if (!visibleCanvas || !mainCanvas) return;
+
+            visibleCanvas.width = mainCanvas.width;
+            visibleCanvas.height = mainCanvas.height;
+
+            const ctx = visibleCanvas.getContext('2d');
+            if (ctx) ctx.drawImage(mainCanvas, 0, 0);
+        }
+
+        // Render comparison
+        function renderComparison() {
+            if (!state.compareMode || !compareCanvas || !state.image || !mainCanvas) return;
+
+            const ctx = compareCanvas.getContext('2d');
+            if (!ctx) return;
+
+            compareCanvas.width = state.image.width;
+            compareCanvas.height = state.image.height;
+
+            const splitX = Math.floor((state.splitPosition / 100) * compareCanvas.width);
+
+            ctx.drawImage(state.image, 0, 0, splitX, compareCanvas.height, 0, 0, splitX, compareCanvas.height);
+            ctx.drawImage(mainCanvas, splitX, 0, compareCanvas.width - splitX, compareCanvas.height, splitX, 0, compareCanvas.width - splitX, compareCanvas.height);
+        }
+
+        // Magnifier setup
+        function setupMagnifier() {
+            const container = document.getElementById('canvasContainer');
+            const canvas = document.getElementById('visibleCanvas');
+            const magnifier = document.getElementById('magnifier');
+            const magnifierCanvas = document.getElementById('magnifierCanvas');
+
+            if (!container || !canvas || !magnifier || !magnifierCanvas) return;
+
+            const magCtx = magnifierCanvas.getContext('2d');
+            magnifierCanvas.width = 150;
+            magnifierCanvas.height = 150;
+
+            canvas.addEventListener('mouseenter', () => {
+                magnifier.classList.add('active');
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // Show magnifier
+                magnifier.style.display = 'block';
+                magnifier.style.left = (e.clientX - rect.left + 20) + 'px';
+                magnifier.style.top = (e.clientY - rect.top - 75) + 'px';
+
+                // Draw magnified area (10x zoom)
+                const zoomSize = 15; // 15px area -> 150px display = 10x
+                const sourceX = (x / rect.width) * canvas.width - zoomSize / 2;
+                const sourceY = (y / rect.height) * canvas.height - zoomSize / 2;
+
+                magCtx.clearRect(0, 0, 150, 150);
+                magCtx.imageSmoothingEnabled = false;
+                magCtx.drawImage(canvas, sourceX, sourceY, zoomSize, zoomSize, 0, 0, 150, 150);
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                magnifier.style.display = 'none';
+                magnifier.classList.remove('active');
+            });
+        }
+
+        // File handling
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) return;
+            showLoading();
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.image = img;
+                    state.compareMode = false;
+                    mainCanvas.width = img.width;
+                    mainCanvas.height = img.height;
+
+                    uploadZone.classList.add('hidden');
+                    canvasArea.classList.remove('hidden');
+                    controlsArea.classList.remove('hidden');
+
+                    renderNoise();
+                    showCanvas();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Events
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        // Debounce
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func(...args), wait);
+            };
+        }
+
+        const debouncedRender = debounce(() => {
+            if (state.image) {
+                renderNoise();
+                if (state.compareMode) {
+                    renderComparison();
+                } else {
+                    updateVisibleCanvas();
+                }
+            }
+        }, 300);
+
+        intensitySlider.addEventListener('input', (e) => {
+            const val = Number(e.target.value);
+            state.intensity = val;
+            intensityValue.textContent = `${val}%`;
+            debouncedRender();
+        });
+
+        document.querySelectorAll('[data-preset]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-preset]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const preset = btn.dataset.preset;
+                state.intensity = PRESETS[preset];
+                intensitySlider.value = state.intensity;
+                intensityValue.textContent = `${state.intensity}%`;
+                debouncedRender();
+            });
+        });
+
+        compareBtn.addEventListener('click', () => {
+            showLoading();
+            state.compareMode = !state.compareMode;
+            compareBtn.classList.toggle('active');
+            compareBtn.querySelector('span:last-child') || (compareBtn.textContent = state.compareMode ? '🔀 关闭对比' : '🔀 对比视图');
+            showCanvas();
+        });
+
+        exportBtn.addEventListener('click', () => {
+            if (!mainCanvas || !state.image) return;
+            showLoading();
+            const link = document.createElement('a');
+            link.download = `jjp-camouflage-${Date.now()}.png`;
+            link.href = mainCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            showLoading();
+            state.image = null;
+            state.compareMode = false;
+            state.intensity = 10;
+            intensitySlider.value = 10;
+            intensityValue.textContent = '10%';
+            uploadZone.classList.remove('hidden');
+            canvasArea.classList.add('hidden');
+            controlsArea.classList.add('hidden');
+        });
+
+        // Split drag (mouse and touch)
+        function handleSplitMove(clientX) {
+            if (!state.isDraggingSplit || !compareContainer) return;
+            const rect = compareContainer.getBoundingClientRect();
+            const x = ((clientX - rect.left) / rect.width) * 100;
+            state.splitPosition = Math.max(5, Math.min(95, x));
+            const splitLine = document.getElementById('splitLine');
+            if (splitLine) splitLine.style.left = `${state.splitPosition}%`;
+            renderComparison();
+        }
+
+        window.addEventListener('mousemove', (e) => handleSplitMove(e.clientX));
+        window.addEventListener('touchmove', (e) => {
+            if (state.isDraggingSplit && e.touches.length > 0) {
+                handleSplitMove(e.touches[0].clientX);
+            }
+        });
+
+        window.addEventListener('mouseup', () => { state.isDraggingSplit = false; });
+        window.addEventListener('touchend', () => { state.isDraggingSplit = false; });
+
+        // Responsive: re-render on resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (state.image) {
+                    showCanvas();
+                }
+            }, 200);
+        });
+    </script>
+</body>
+</html>
