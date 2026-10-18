@@ -182,7 +182,39 @@
     </style>
 </head>
 <body>
-    <div class="loading-overlay" id="loadingOverlay">
+  <!-- === 新增：右上角长方形作者主页按钮 (纯插入模块)找到 <body> 标签的正下方第一行，直接粘贴以下代码块。 === -->
+<style>
+    .author-btn-top {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 9999;
+        display: inline-block;
+        padding: 10px 24px;
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        color: #e5e7eb;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    .author-btn-top:hover {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.12);
+        color: #fff;
+        box-shadow: 0 0 16px rgba(59, 130, 246, 0.3), 0 2px 8px rgba(0, 0, 0, 0.3);
+        transform: translateY(-1px);
+    }
+</style>
+<a href="https://117117.pages.dev/" target="_blank" rel="noopener noreferrer" class="author-btn-top">作者主页</a>
+<!-- === 新增结束 === -->
+   <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner"></div>
         <div class="loading-text" id="loadingText">请等待...</div>
     </div>
