@@ -39,7 +39,7 @@ JJP AI Camouflage is a mathematical image preprocessing tool. By injecting struc
 Provide non-professional users with a simple, direct copyright protection aid. Users need no deep learning knowledge, model training, or GPU computing power; browser-based processing suffices for "anti-scraping" treatment of artworks, document screenshots, etc.
 
 ## Execution Mode
-Runs entirely locally in the browser. All perturbation calculations are based on Canvas ImageData API and native JavaScript math libraries, independent of any backend services or AI inference interfaces.
+All perturbation calculations are based on Canvas ImageData API and native JavaScript math libraries, independent of any backend services or AI inference interfaces.
 
 ## Algorithm Principles
 Employs a hybrid perturbation strategy:
@@ -70,5 +70,3 @@ Depends on high-performance Canvas pixel operations. Processing 4K+ resolution i
 - Cannot defend against targeted denoising algorithm attacks.
 - Single processing time grows linearly with resolution.
 
-## License
-This project is licensed under the MIT License.
